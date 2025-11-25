@@ -1,3 +1,12 @@
+# TODO: Implement retry logic for transient errors.
+# The docstring mentions "Retry logic", but it's not implemented.
+# We should implement a retry mechanism with exponential backoff for 429 (Rate Limit) and 5xx server errors.
+# The `httpx` library supports this with `httpx.AsyncClient(transport=httpx.AsyncHTTPTransport(retries=3))`.
+
+# TODO: Preserve the original exception context when handling httpx exceptions.
+# In the `_make_request` method, `httpx.TimeoutException` and `httpx.RequestError` are caught and re-raised as `PipedriveAPIError`.
+# This loses the original stack trace. We should use `raise PipedriveAPIError(...) from e` to preserve the original exception context,
+# which is valuable for debugging.
 """Pipedrive API client wrapper with URL fix and enhanced features."""
 
 import logging
@@ -41,9 +50,13 @@ class PipedriveClient:
         # We need to fix it to use api.pipedrive.com
         self._client._origin = settings.pipedrive_api_base_url
 
-        # Initialize httpx client for async operations
+        # Initialize httpx client for async operations with retry logic
+        transport = httpx.AsyncHTTPTransport(
+            retries=3,
+        )
         self._http_client = httpx.AsyncClient(
-            timeout=settings.request_timeout,
+            transport=transport,
+            timeout=httpx.Timeout(settings.request_timeout),
             limits=httpx.Limits(max_connections=settings.connection_pool_size),
         )
 

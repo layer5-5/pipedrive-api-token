@@ -1,3 +1,15 @@
+# TODO: Avoid silent failures in exception handling.
+# The `get_deal_activities`, `get_deal_notes`, etc. methods use a broad `except Exception`
+# that logs a warning and returns an empty list. This is a silent failure that can hide underlying issues.
+# It's better to let exceptions propagate to a centralized error handler in the web layer,
+# or to catch specific, expected exceptions and re-raise them as a custom service-level exception.
+# This will make the application more robust and easier to debug.
+
+# TODO: Improve exception handling in `get_comprehensive_deal`.
+# When using `asyncio.gather` with `return_exceptions=True`, the code checks for exceptions
+# but then discards them. At a minimum, the exceptions should be logged with their full traceback
+# so that errors are not silently ignored. For example:
+# `if isinstance(activities, Exception): logger.error("Failed to fetch activities", exc_info=activities)`
 """Deal management service with comprehensive lifecycle tracking."""
 
 import logging
@@ -516,8 +528,17 @@ class DealService:
         """
         logger.info(f"Searching deals for: {term}")
 
+        # Validate search term - Pipedrive requires at least 2 characters
+        if not term or len(term.strip()) < 2:
+            raise PipedriveValidationError(
+                "Search term must be at least 2 characters long"
+            )
+
+        # Validate limit - Pipedrive caps at 100
+        limit = min(limit, 100)
+
         params = {
-            "term": term,
+            "term": term.strip(),
             "item_type": "deal",
             "limit": limit,
         }

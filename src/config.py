@@ -1,3 +1,5 @@
+# TODO: Add JWT_SECRET_KEY for JWT token validation, as specified in the requirements.md.
+# This is a critical security requirement for authenticating requests from the Layer55 API backend.
 """Configuration management for Pipedrive MCP Server."""
 
 from typing import Optional
@@ -23,6 +25,11 @@ class Settings(BaseSettings):
     # Layer55 Configuration
     layer55_api_url: str = "https://api.layer55.eu"
     pipedrive_server_id: str = "pipedrive"
+
+    # JWT Configuration - Should be set via environment variable in production
+    jwt_secret_key: str = "dev-fallback-key-change-in-production"
+    jwt_algorithm: str = "HS256"
+    jwt_expiration_minutes: int = 60
 
     # Redis Configuration - TODO: Implement caching layer
     redis_host: str = "localhost"
@@ -67,4 +74,17 @@ class Settings(BaseSettings):
 
 
 # Global settings instance
-settings = Settings()
+try:
+    settings = Settings()
+    if not settings.jwt_secret_key:
+        import warnings
+
+        warnings.warn(
+            "JWT_SECRET_KEY not set - authentication will fail. Set this environment variable in production."
+        )
+except Exception as e:
+    import warnings
+
+    warnings.warn(f"Configuration error: {e}")
+    # Fallback settings for development
+    settings = Settings(jwt_secret_key="dev-fallback-key")

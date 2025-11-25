@@ -126,6 +126,7 @@ class OrganizationUpdateRequest(PipedriveBaseModel):
     name: Optional[str] = Field(None, description="Organization name")
     owner_id: Optional[int] = Field(None, description="Owner user ID")
     address: Optional[str] = Field(None, description="Address")
+    website: Optional[str] = Field(None, description="Website URL")
     visible_to: Optional[str] = Field(None, description="Visibility level")
     custom_fields: Optional[Dict[str, Any]] = Field(None, description="Custom fields")
 

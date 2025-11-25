@@ -8,18 +8,18 @@ import os
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src_v2.client.pipedrive_client import PipedriveClient
-from src_v2.services.deal_service import DealService
-from src_v2.services.contact_service import ContactService
-from src_v2.services.company_service import CompanyService
-from src_v2.services.activity_service import ActivityService
+from src.client.pipedrive_client import PipedriveClient
+from src.services.deal_service import DealService
+from src.services.contact_service import ContactService
+from src.services.company_service import CompanyService
+from src.services.activity_service import ActivityService
 
 
 async def test_all_services():
     """Test all services with comprehensive data retrieval."""
 
     # Use the provided API token
-    API_TOKEN = "3ce8d407534797130d420196f9f42520d813469"
+    # API tokens come from Layer55 backend per request - no hardcoded tokens
 
     print("=" * 80)
     print("Testing All Pipedrive Services with Real API Token")

@@ -7,6 +7,7 @@ from .errors import (
     PipedriveRateLimitError,
     PipedriveValidationError,
 )
+from .cache import CacheManager, cache_manager, get_cache_manager
 
 __all__ = [
     "PipedriveError",
@@ -14,4 +15,7 @@ __all__ = [
     "PipedriveAuthError",
     "PipedriveRateLimitError",
     "PipedriveValidationError",
+    "CacheManager",
+    "cache_manager",
+    "get_cache_manager",
 ]

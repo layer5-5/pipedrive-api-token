@@ -7,15 +7,15 @@ import os
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src_v2.client.pipedrive_client import PipedriveClient
-from src_v2.config import settings
+from src.client.pipedrive_client import PipedriveClient
+from src.config import settings
 
 
 async def test_client():
     """Test Pipedrive client with real API token."""
 
     # Use the provided API token
-    API_TOKEN = "3ce8d4075347977130d420196f9f42520d813469"
+    # API tokens come from Layer55 backend per request - no hardcoded tokens
 
     print("=" * 80)
     print("Testing Pipedrive Client with Real API Token")

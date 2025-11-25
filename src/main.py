@@ -11,6 +11,13 @@ from pydantic import BaseModel
 
 from src.config import settings
 from src.utils.errors import PipedriveError, PipedriveValidationError
+from src.services.deal_service import DealService
+from src.services.contact_service import ContactService
+from src.services.company_service import CompanyService
+from src.services.activity_service import ActivityService
+from src.services.pipeline_service import PipelineService
+from src.services.product_service import ProductService
+from src.services.user_service import UserService
 
 
 # Configure logging
@@ -255,11 +262,24 @@ async def get_public_tools():
                 },
             },
             {
-                "name": "get_pipeline_stages",
-                "description": "Get all pipeline stages",
+                "name": "get_pipelines",
+                "description": "Get all pipelines with their names and IDs",
                 "inputSchema": {
                     "type": "object",
-                    "properties": {"pipeline_id": {"type": "integer", "default": 1}},
+                    "properties": {},
+                },
+            },
+            {
+                "name": "get_pipeline_stages",
+                "description": "Get all pipeline stages (accepts either pipeline name or ID)",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "pipeline": {
+                            "type": "string",
+                            "description": "Pipeline name (e.g., 'Sales Pipeline') or ID (e.g., 1). If not provided, uses default pipeline.",
+                        }
+                    },
                 },
             },
             {
@@ -312,16 +332,158 @@ async def call_tool(request: ToolCallRequest, http_request: Request):
                 ]
             }
 
-        elif request.name == "get_pipeline_stages":
-            pipeline_id = request.arguments.get("pipeline_id", 1)
-            return {
-                "content": [
-                    {
-                        "type": "text",
-                        "text": f"Retrieved {pipeline_id} pipeline stages. (Mock response - implement actual Pipedrive API integration)",
+        elif request.name == "get_pipelines":
+            pipeline_service = await get_pipeline_service(http_request)
+
+            try:
+                pipelines = await pipeline_service.get_pipelines()
+
+                if not pipelines:
+                    return {
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": "No pipelines found in your Pipedrive account",
+                            }
+                        ]
                     }
-                ]
-            }
+
+                # Format pipelines for display
+                pipelines_text = f"Found {len(pipelines)} pipelines:\n\n"
+                for pipeline in pipelines:
+                    stages_count = len(pipeline.stages) if pipeline.stages else 0
+                    pipelines_text += f"• {pipeline.name} (ID: {pipeline.id}, {stages_count} stages)\n"
+
+                return {
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": pipelines_text.strip(),
+                        }
+                    ]
+                }
+
+            except Exception as e:
+                return create_error_response(
+                    tool_name="get_pipelines",
+                    error_type="api_error",
+                    message=f"Failed to retrieve pipelines: {str(e)}",
+                    suggestions=[
+                        "Check if your Pipedrive account has pipelines configured",
+                        "Verify your API token has pipeline read permissions",
+                        "Try accessing Pipedrive directly to confirm pipeline access",
+                    ],
+                )
+
+        elif request.name == "get_pipeline_stages":
+            pipeline = request.arguments.get(
+                "pipeline", "1"
+            )  # Changed from pipeline_id to pipeline
+            pipeline_service = await get_pipeline_service(http_request)
+
+            # Helper function to resolve pipeline name to ID
+            async def resolve_pipeline_id(pipeline_input):
+                """Convert pipeline name or ID to pipeline ID."""
+                try:
+                    # If it's a number, treat as ID
+                    if str(pipeline_input).isdigit():
+                        return int(pipeline_input)
+
+                    # Otherwise, search by name
+                    pipelines = await pipeline_service.get_pipelines()
+                    for p in pipelines:
+                        if p.name.lower() == str(pipeline_input).lower():
+                            return p.id
+
+                    # Try partial match
+                    for p in pipelines:
+                        if str(pipeline_input).lower() in p.name.lower():
+                            logger.info(
+                                f"Partial match: '{pipeline_input}' -> '{p.name}' (ID: {p.id})"
+                            )
+                            return p.id
+
+                    return None  # Not found
+                except Exception as e:
+                    logger.error(f"Error resolving pipeline '{pipeline_input}': {e}")
+                    return None
+
+            try:
+                # Resolve pipeline name/ID to actual pipeline ID
+                resolved_pipeline_id = await resolve_pipeline_id(pipeline)
+
+                if resolved_pipeline_id is None:
+                    return create_error_response(
+                        tool_name="get_pipeline_stages",
+                        error_type="not_found",
+                        message=f"Pipeline '{pipeline}' not found",
+                        suggestions=[
+                            f"Use get_pipelines to see all available pipelines",
+                            f"Check pipeline name spelling (you searched for: '{pipeline}')",
+                            "Try using pipeline ID number instead of name",
+                            "Common pipeline names: 'Sales Pipeline', 'Onboarding', 'Lead Qualification'",
+                        ],
+                    )
+
+                stages_response = await pipeline_service.get_stages(
+                    pipeline_id=resolved_pipeline_id
+                )
+                stages = stages_response.data
+
+                if not stages:
+                    return {
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": f"Pipeline '{pipeline}' (ID: {resolved_pipeline_id}) has no stages configured",
+                            }
+                        ]
+                    }
+
+                # Format stages for display
+                stages_text = f"Found {len(stages)} stages for pipeline '{pipeline}' (ID: {resolved_pipeline_id}):\n\n"
+                for stage in stages:
+                    prob_text = (
+                        f" ({stage.deal_probability}%)"
+                        if stage.deal_probability
+                        else ""
+                    )
+                    stages_text += f"• {stage.name} (ID: {stage.id}, Order: {stage.order_nr}){prob_text}\n"
+
+                return {
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": stages_text.strip(),
+                        }
+                    ]
+                }
+
+            except Exception as e:
+                error_msg = str(e)
+                if "404" in error_msg or "Not Found" in error_msg:
+                    return create_error_response(
+                        tool_name="get_pipeline_stages",
+                        error_type="not_found",
+                        message=f"Pipeline '{pipeline}' not found or has no stages",
+                        suggestions=[
+                            f"Use get_pipelines to see all available pipelines",
+                            f"Check pipeline name spelling (you searched for: '{pipeline}')",
+                            "Try using pipeline ID number instead of name",
+                            "Common pipeline names: 'Sales Pipeline', 'Onboarding', 'Lead Qualification'",
+                        ],
+                    )
+                else:
+                    return create_error_response(
+                        tool_name="get_pipeline_stages",
+                        error_type="api_error",
+                        message=f"Pipedrive API error: {error_msg}",
+                        suggestions=[
+                            "Check if pipeline name is valid",
+                            f"Try with pipeline name from get_pipelines results",
+                            "Verify your Pipedrive account has pipeline access",
+                        ],
+                    )
 
         else:
             # Generic mock response for other tools
