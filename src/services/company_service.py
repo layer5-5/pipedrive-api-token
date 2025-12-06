@@ -111,21 +111,13 @@ class CompanyService:
 
     async def get_organization_deals(self, org_id: int) -> List[Deal]:
         """Get all deals for an organization."""
-        try:
-            response = await self.client.get(f"/v1/organizations/{org_id}/deals")
-            return [Deal(**d) for d in response.get("data", [])]
-        except Exception as e:
-            logger.warning(f"Error fetching deals for org {org_id}: {e}")
-            return []
+        response = await self.client.get(f"/v1/organizations/{org_id}/deals")
+        return [Deal(**d) for d in response.get("data", [])]
 
     async def get_organization_persons(self, org_id: int) -> List[Person]:
         """Get all persons for an organization."""
-        try:
-            response = await self.client.get(f"/v1/organizations/{org_id}/persons")
-            return [Person(**p) for p in response.get("data", [])]
-        except Exception as e:
-            logger.warning(f"Error fetching persons for org {org_id}: {e}")
-            return []
+        response = await self.client.get(f"/v1/organizations/{org_id}/persons")
+        return [Person(**p) for p in response.get("data", [])]
 
     async def create_organization(
         self, request: OrganizationCreateRequest

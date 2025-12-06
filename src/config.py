@@ -17,10 +17,14 @@ class Settings(BaseSettings):
 
     # Server Host/Port
     host: str = "0.0.0.0"
-    port: int = 8002
+    port: int = 8004  # Default port (avoiding conflict with Smart Insights on 8002)
+    mcp_server_port: Optional[int] = None  # Environment variable override
 
     # Pipedrive Configuration
     pipedrive_api_base_url: str = "https://api.pipedrive.com"
+    # NOTE: API tokens are NEVER stored in settings/env variables
+    # They are extracted from request headers (X-API-Token) via the @require_api_key decorator
+    # and injected as function parameters. See auth/api_key_auth.py
 
     # Layer55 Configuration
     layer55_api_url: str = "https://api.layer55.eu"
@@ -30,6 +34,11 @@ class Settings(BaseSettings):
     jwt_secret_key: str = "dev-fallback-key-change-in-production"
     jwt_algorithm: str = "HS256"
     jwt_expiration_minutes: int = 60
+
+    # API Key Configuration - Should be set via environment variable in production
+    valid_api_keys: list[
+        str
+    ] = []  # Empty list means accept any non-empty key in development
 
     # Redis Configuration - TODO: Implement caching layer
     redis_host: str = "localhost"
@@ -66,16 +75,33 @@ class Settings(BaseSettings):
     # Data Retrieval Logging
     enable_data_retrieval_logging: bool = True
 
+    # Export Configuration
+    exports_directory: str = "./exports"
+    max_export_age_hours: int = 24  # Clean up exports older than 24 hours
+    enable_export_cleanup: bool = True
+
+    # Langfuse Monitoring Configuration
+    langfuse_secret_key: Optional[str] = None
+    langfuse_public_key: Optional[str] = None
+    langfuse_base_url: Optional[str] = None
+    langfuse_enabled: bool = True
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=False,
+        env_prefix="",  # Allow direct environment variable mapping
     )
 
 
 # Global settings instance
 try:
     settings = Settings()
+
+    # Override port if MCP_SERVER_PORT is set
+    if settings.mcp_server_port:
+        settings.port = settings.mcp_server_port
+
     if not settings.jwt_secret_key:
         import warnings
 

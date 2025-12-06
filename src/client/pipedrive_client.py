@@ -3,10 +3,7 @@
 # We should implement a retry mechanism with exponential backoff for 429 (Rate Limit) and 5xx server errors.
 # The `httpx` library supports this with `httpx.AsyncClient(transport=httpx.AsyncHTTPTransport(retries=3))`.
 
-# TODO: Preserve the original exception context when handling httpx exceptions.
-# In the `_make_request` method, `httpx.TimeoutException` and `httpx.RequestError` are caught and re-raised as `PipedriveAPIError`.
-# This loses the original stack trace. We should use `raise PipedriveAPIError(...) from e` to preserve the original exception context,
-# which is valuable for debugging.
+# FIXED: Exception context is now preserved using 'raise from' syntax in the _make_request method.
 """Pipedrive API client wrapper with URL fix and enhanced features."""
 
 import logging
@@ -98,8 +95,8 @@ class PipedriveClient:
         # - Cache search results for 1 minute (settings.cache_ttl_search)
         # - Use Redis for cache storage
         # - Implement cache invalidation on write operations
-        # Ensure endpoint starts with /v1
-        if not endpoint.startswith("/v1"):
+        # Ensure endpoint starts with /v1 or /v2
+        if not endpoint.startswith("/v1") and not endpoint.startswith("/v2"):
             endpoint = f"/v1{endpoint if endpoint.startswith('/') else '/' + endpoint}"
 
         # Build full URL
@@ -177,10 +174,10 @@ class PipedriveClient:
 
         except httpx.TimeoutException as e:
             logger.error(f"Request timeout: {e}")
-            raise PipedriveAPIError(f"Request timeout: {e}")
+            raise PipedriveAPIError(f"Request timeout: {e}") from e
         except httpx.RequestError as e:
             logger.error(f"Request error: {e}")
-            raise PipedriveAPIError(f"Request error: {e}")
+            raise PipedriveAPIError(f"Request error: {e}") from e
 
     async def get(
         self,

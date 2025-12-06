@@ -12,8 +12,9 @@ COPY src/ ./src/
 # Set Python path
 ENV PYTHONPATH=/app
 
-# Expose port
-EXPOSE 8002
+#REMAPED IN DOCKER COMPOSE FOR DEV
+EXPOSE 8003 
+# DO NOT CHANGE THE PORT THIS IS NOT YOUR ISSUE
 
 # Run the application
-CMD ["python", "src/main.py"]
+CMD ["python", "-m", "src.main"]

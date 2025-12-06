@@ -100,21 +100,13 @@ class ContactService:
 
     async def get_person_deals(self, person_id: int) -> List[Deal]:
         """Get all deals for a person."""
-        try:
-            response = await self.client.get(f"/v1/persons/{person_id}/deals")
-            return [Deal(**d) for d in response.get("data", [])]
-        except Exception as e:
-            logger.warning(f"Error fetching deals for person {person_id}: {e}")
-            return []
+        response = await self.client.get(f"/v1/persons/{person_id}/deals")
+        return [Deal(**d) for d in response.get("data", [])]
 
     async def get_person_activities(self, person_id: int) -> List[Activity]:
         """Get all activities for a person."""
-        try:
-            response = await self.client.get(f"/v1/persons/{person_id}/activities")
-            return [Activity(**a) for a in response.get("data", [])]
-        except Exception as e:
-            logger.warning(f"Error fetching activities for person {person_id}: {e}")
-            return []
+        response = await self.client.get(f"/v1/persons/{person_id}/activities")
+        return [Activity(**a) for a in response.get("data", [])]
 
     async def create_person(self, request: PersonCreateRequest) -> Person:
         """Create a new person."""

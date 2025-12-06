@@ -107,6 +107,43 @@ class PipelineService:
 
         return PaginatedResponse(data=stages, pagination=pagination)
 
+    async def get_pipeline_stages(self, pipeline: Optional[str] = None) -> List[Stage]:
+        """
+        Get all pipeline stages (accepts either pipeline name or ID).
+
+        Args:
+            pipeline: Pipeline name (e.g., 'Sales Pipeline') or ID (e.g., 1).
+                     If not provided, uses default pipeline.
+
+        Returns:
+            List of stages
+        """
+        if pipeline is None:
+            # Get default pipeline stages
+            pipelines = await self.get_pipelines()
+            if pipelines:
+                default_pipeline = pipelines[0]  # First pipeline is usually default
+                return default_pipeline.stages or []
+            return []
+
+        # Check if pipeline is numeric (ID) or string (name)
+        try:
+            pipeline_id = int(pipeline)
+            # Get specific pipeline by ID
+            pipeline_obj = await self.get_pipeline(pipeline_id)
+            return pipeline_obj.stages or []
+        except ValueError:
+            # Pipeline is a name, search for it
+            pipelines = await self.get_pipelines()
+            for pipeline_obj in pipelines:
+                if pipeline_obj.name and pipeline_obj.name.lower() == pipeline.lower():
+                    return pipeline_obj.stages or []
+            raise PipedriveNotFoundError(
+                f"Pipeline '{pipeline}' not found",
+                resource_type="pipeline",
+                resource_id=pipeline,
+            )
+
     async def get_stage(self, stage_id: int) -> Stage:
         """Get single stage by ID."""
         response = await self.client.get(f"/v2/stages/{stage_id}")
